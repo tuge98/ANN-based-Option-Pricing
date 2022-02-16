@@ -168,10 +168,11 @@ df1["helper"] = df1.groupby("A").paivat.transform('cumcount')
 df1["TTM"] = df1["paivat"] - df1["helper"]
 df1["TTM"] = df1.TTM.astype("float")
 
-prettyprint = callpricesummary.pricesummary(df1)
+
 df1 = filtering.filteringfunction(df1)
 
 print("average ttm",df1["TTM"].mean())
+df1["TTM2"] = df1["TTM"]
 df1["TTM"] = df1["TTM"] / 252
 
 
@@ -194,8 +195,9 @@ df1 = df1.drop_duplicates()
 #extracting options that wont meet lower boundary condition
 df1["lb"] = df1["UNDERLYING"] - df1["STRIKE"] *np.exp(-df1["RF"] * df1["TTM"])
 df1 = df1[df1["CALL_PRICE"] > df1["lb"]]
-print(df1)
 
+print(df1)
+prettyprint = callpricesummary.pricesummary(df1)
 
 
 #normalizing data
