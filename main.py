@@ -20,6 +20,8 @@ from sklearn.neural_network import MLPClassifier
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, LeakyReLU
 from keras import backend
+import tensorflow as tf
+tf.compat.v1.disable_eager_execution()
 
 from arch import arch_model
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
@@ -187,7 +189,8 @@ df1 = df1.merge(rfdata, on = "Name")
 
 
 #calculating theoretical optionprices
-df1["bsprice"] = blackscholes.blackscholes(df1["UNDERLYING"],df1["STRIKE"],df1["TTM"],df1["RF"],df1["60dvol"])
+df1["bsprice"] = blackscholes.blackscholes(df1["UNDERLYING"],df1["STRIKE"],df1["TTM"],0.01,df1["3mvol"])
+df1["bsdelta"] = blackscholes.bsdelta(df1["UNDERLYING"],df1["STRIKE"],df1["TTM"],0.01,df1["3mvol"])
 df1["bsprice"]=df1["bsprice"].round(4)
 df1 = df1.dropna()
 df1 = df1.drop_duplicates()
@@ -198,34 +201,115 @@ df1 = df1[df1["CALL_PRICE"] > df1["lb"]]
 
 print(df1)
 prettyprint = callpricesummary.pricesummary(df1)
-
+print(df1["TTM"].describe())
+print(df1["TTM2"].describe())
+print(df1.describe())
 
 #normalizing data
+
+"""
 df1["UNDERLYING"] = df1["UNDERLYING"]/df1["STRIKE"]
 df1["CALL_PRICE"] = df1["CALL_PRICE"]/df1["STRIKE"]
 df1["bsprice"] = df1["bsprice"]/df1["STRIKE"]
+
+
+"""
+
+df1["CALL_PRICE2"] = df1["CALL_PRICE"]/df1["STRIKE"]
+df1["bsprice2"] = df1["bsprice"]/df1["STRIKE"]
 
 
 
 
 #nitializing
 scaler=MinMaxScaler(feature_range=(0,1))
-#df1['MA'] = scaler.fit_transform(df1[["MA"]])
-print(df1)
+df1['STRIKE2'] = scaler.fit_transform(df1[["STRIKE"]])
+df1['UNDERLYING2'] = scaler.fit_transform(df1[["UNDERLYING"]])
+#print(df1)
 
-X=df1[['Moneyness', 'TTM', '60dvol', 'vol_garch']]
-y=df1['CALL_PRICE']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+#X=df1[['Moneyness', 'TTM', '60dvol', 'vol_garch']]
+#y=df1['CALL_PRICE']
+#X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
 
 
+#y muuttuja = moneyness ja TTM
+#x muuttuja = call price / stike price
+df1 = df1.sort_values(by = ["A", "Name"])
 
+
+n = 271689
+n_train = (int)(0.8 * n)
+train = df1[0:n_train]
+
+"""
+X_train = train[['UNDERLYING','Moneyness', 'TTM', '60dvol', 'vol_garch', 'RF']].values
+y_train = train['CALL_PRICE'].values
+
+"""
+
+#X_train = train[['Moneyness', 'TTM', '60dvol', 'vol_garch', 'RF']].values
+#X_train = train[['Moneyness', 'TTM']].values
+X_train = train[['Moneyness', 'TTM', '1mvol','3mvol','60dvol','vol_garch', 'RF']].values
+y_train = train['CALL_PRICE2'].values
+test = df1[n_train+1:n]
+print(len(test))
+
+
+"""
+X_test = test[['UNDERLYING','Moneyness', 'TTM', '60dvol', 'vol_garch', 'RF']].values
+y_test = test['CALL_PRICE'].values
+"""
+#X_test = test[['Moneyness', 'TTM','60dvol', 'vol_garch', 'RF']].values
+#X_test = test[['Moneyness', 'TTM']].values
+X_test = test[['Moneyness', 'TTM', '1mvol','3mvol','60dvol','vol_garch', 'RF']].values
+y_test = test['CALL_PRICE2'].values
 #predicting with model1
-y_train_hat = model1.model1(X_train, y_train)
+#y_train_hat = model1.model1(X_train, y_train)
 
 #checking accuracy
-x1acc = model1.CheckAccuracy(y_train, y_train_hat)
+#x1acc = model1.CheckAccuracy(y_train, y_train_hat)
 #x2acc = model1.CheckAccuracy(df1["CALL_PRICE"],df1["bsprice"])
+def custom_activation(x):
+    return backend.exp(x)
 
+
+
+nodes = 120
+#sess = tf.InteractiveSession()
+#sess.run(tf.initialize_all_variables())
+sess = tf.compat.v1.InteractiveSession()
+sess.run(tf.compat.v1.global_variables_initializer())
+model = Sequential()
+
+model.add(Dense(nodes, input_dim=X_train.shape[1]))
+model.add(LeakyReLU())
+model.add(Dropout(0.25))
+
+model.add(Dense(nodes, activation='elu'))
+model.add(Dropout(0.25))
+
+#model.add(Dense(nodes, activation='relu'))
+model.add(Dense(nodes, activation='relu'))
+model.add(Dropout(0.25))
+
+#model.add(Dense(nodes, activation='elu'))
+#model.add(Dense(nodes, activation='relu'))
+#model.add(Dropout(0.25))
+
+model.add(Dense(1))
+model.add(Activation(custom_activation))
+#model.add(Activation('softplus'))
+
+model.compile(loss='mse', optimizer='rmsprop')
+
+# fitting neural network
+model.fit(X_train, y_train, batch_size=128,
+
+epochs=10, validation_split=0.1, verbose=2)
+
+#y_train_hat = model.predict(X_train)
+# reduce dim (240000,1) -> (240000,) to match y_train's dim
+#y_train_hat = np.squeeze(y_train_hat)
 
 
 def CheckAccuracy(y,y_hat):
@@ -245,15 +329,141 @@ def CheckAccuracy(y,y_hat):
     
     stats['mpe'] = np.sqrt(stats['mse'])/np.mean(y)
     print("Mean Percent Error:      ", stats['mpe'])
-    
+    plt.figure(figsize=(14,10))
     plt.scatter(y, y_hat,color='black',linewidth=0.3,alpha=0.4, s=0.5)
-    plt.xlabel('Actual Price',fontsize=20,fontname='Times New Roman')
-    plt.ylabel('Predicted Price',fontsize=20,fontname='Times New Roman') 
+    plt.xlabel('Actual Price C/K Test Sample' ,fontsize=20,fontname='Times New Roman')
+    plt.ylabel('Predicted Price C/K Test Sample',fontsize=20,fontname='Times New Roman') 
+    #plt.xlim([0.0, 0.25])
+    #plt.ylim([0.0, 0.25])
     plt.show()
     
-    
-    plt.hist(stats['diff'], bins=50,edgecolor='black',color='white')
+    plt.figure(figsize=(14,10))
+    plt.hist(stats['diff'], bins=25,edgecolor='black',color='white')
     plt.xlabel('Diff')
     plt.ylabel('Density')
     plt.show()
-CheckAccuracy(df1["CALL_PRICE"],df1["bsprice"])
+
+
+"""
+def testiplot(datasetti2):
+    plt.figure(figsize=(14,10))
+    plt.scatter(datasetti2["CALL_PRICE"],datasetti2["bsprice"],color='black')
+    plt.show()
+
+"""
+#CheckAccuracy(df1["CALL_PRICE"], df1["bsprice"])
+
+
+#in-sample
+y_train_hat = model.predict(X_train)
+y_train_hat = np.squeeze(y_train_hat)
+CheckAccuracy(y_train, y_train_hat)
+
+#test["ANNpred"] = y_train_hat.tolist()
+
+
+#print(test)
+
+#out-sample
+y_test_hat = model.predict(X_test)
+y_test_hat = np.squeeze(y_test_hat)
+test_stats = CheckAccuracy(y_test, y_test_hat)
+
+test["ANNpred"] = y_test_hat.tolist()
+print(test)
+#grad_func = tf.gradients(model.output[:, 0], model.input).numpy()
+
+
+
+
+#test["ANNdelta"] = grad_func
+#print(grad_func)
+#print(grad_func[0,0])
+
+#print(test)
+"""
+
+input_images_tensor = tf.constant(X_test)
+with tf.GradientTape() as g:
+    g.watch(input_images_tensor)
+    output_tensor = model(input_images_tensor)
+
+gradients = g.gradient(output_tensor, input_images_tensor)
+print(gradients)
+"""
+
+
+
+def jacobian_tensorflow(x):    
+    jacobian_matrix = []
+    
+       
+    grad_func = tf.gradients(model.output[:, 0], model.input)
+    gradients = sess.run(grad_func, feed_dict={model.input: x.reshape((1, x.size))})
+    jacobian_matrix.append(gradients[0][0,:])
+        
+    return np.array(jacobian_matrix)
+
+
+def is_jacobian_correct(jacobian_fn, ffpass_fn):
+   
+    x = np.random.random((1,))
+    epsilon = 1e-5
+  
+    num_of_inputs = 5
+   
+    for idx in range(num_of_inputs):
+
+        x2 = x.copy()
+        x2[idx] += epsilon
+        num_jacobian = (ffpass_fn(x2) - ffpass_fn(x)) / epsilon
+        computed_jacobian = jacobian_fn(x)
+        
+        if not all(abs(computed_jacobian[:, idx] - num_jacobian) < 1e-3): 
+            return False
+
+def ffpass_tf(x):
+  
+    xr = x.reshape((1, x.size))
+    return model.predict(xr)[0]
+#is_jacobian_correct(jacobian_tensorflow, ffpass_tf)
+#jacobian_tf = jacobian_tensorflow(X_test)
+
+#print(jacobian_tf)
+
+def getder(row, sess, grad_func, model):
+    x  = np.asarray([(0, 0, 0, 0, 0)])
+    x[0,0] = row['Moneyness']
+    x[0,1] = row['TTM']
+    x[0,2] = row['60dvol']
+    x[0,3] = row['vol_garch']
+    x[0,4] = row['RF']
+    gradients = sess.run(grad_func, feed_dict={model.input: x.reshape((1, x.size))})
+    return np.array(gradients[0][0,:])[0]
+
+
+
+
+
+gradients = tf.gradients(model.output[:, 0], model.input)
+evaluated_gradients_1 = sess.run(gradients[0], feed_dict={model.input: 
+X_test})
+print(evaluated_gradients_1)
+
+
+def Extract(lst):
+    return [item[0] for item in lst]
+
+#print(len(Extract(evaluated_gradients_1)))
+deltaANN = Extract(evaluated_gradients_1)
+test["deltaANN"] = deltaANN
+
+test["annvalue"] = test["ANNpred"] * test["STRIKE"] 
+print(test["deltaANN"].max())
+
+print(test)
+
+xx = test.to_csv("moneynesstest.csv")
+
+
+CheckAccuracy(test["CALL_PRICE2"], test["bsprice2"])

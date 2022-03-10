@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.stats as si
 import pandas as pd
-
+import math
 
 def blackscholes(S, K, T, r, sigma):
     
@@ -18,3 +18,9 @@ def blackscholes(S, K, T, r, sigma):
     
     return call
 
+
+def bsdelta(S,K,T,r,sigma):
+     d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+     delta_ = si.norm.cdf(d1, 0.0, 1.0)
+     return delta_
+    
