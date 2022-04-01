@@ -7,8 +7,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as si
-
+from tensorflow.keras.utils import plot_model
 from sklearn.preprocessing import MinMaxScaler
+
+from ann_visualizer.visualize import ann_viz
 """
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, LeakyReLU
@@ -23,6 +25,9 @@ from keras import backend
 import tensorflow as tf
 tf.compat.v1.disable_eager_execution()
 
+from statsmodels.tsa.stattools import acf, pacf
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+
 from arch import arch_model
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.stattools import acf, q_stat, adfuller
@@ -36,6 +41,10 @@ import blackscholes as blackscholes
 
 import model1 as model1
 import callpricesummary as callpricesummary
+
+import statsmodels.graphics.tsaplots as sgt
+
+
 
 
 daatta1 = pd.read_csv(r"C:\Users\q8606\Desktop\GRADUTUTKIMUKSET\data1.csv", sep=";")
@@ -86,7 +95,10 @@ df = df.dropna()
 
 
 
-garchfunctions.plot_correlogram(df['vola'], lags=100, title='FTSE 100')
+
+#garchfunctions.plot_correlogram(df['vola'], lags=30, title='FTSE 100')
+#plot_acf(df["vola"], lags = 30)
+#plot_pacf(df["vola"], lags = 30)
 garch = garchfunctions.garch(df)
 
 #undo the code to see garch plots
@@ -94,6 +106,28 @@ df['vol_garch'].plot()
 plt.show()
 print(df)
 
+
+
+""""
+def garchplots(df):
+    df = df.dropna()
+    plt.subplot(1, 2, 1)
+    sm.graphics.tsa.plot_acf(df, lags=50)
+    plt.xlabel('lags')
+    plt.ylabel('corr')
+    plt.show()
+    plt.subplot(1, 2, 2)
+    sm.graphics.tsa.plot_pacf(df, lags=50)
+    plt.xlabel('lags')
+    plt.ylabel('corr') 
+
+    plt.show()
+
+
+"""
+
+#garchplots = garchplots(df["vol_garch"])
+#garchfunctions.garchplots(df["vol_garch"])
 
 
 
@@ -249,19 +283,19 @@ y_train = train['CALL_PRICE'].values
 
 #X_train = train[['Moneyness', 'TTM', '60dvol', 'vol_garch', 'RF']].values
 #X_train = train[['Moneyness', 'TTM']].values
-X_train = train[['Moneyness', 'TTM', '1mvol','3mvol','60dvol','vol_garch', 'RF']].values
+X_train = train[['Moneyness', 'TTM','1mvol','3mvol','60dvol','RF']].values
 y_train = train['CALL_PRICE2'].values
 test = df1[n_train+1:n]
 print(len(test))
 
 
 """
-X_test = test[['UNDERLYING','Moneyness', 'TTM', '60dvol', 'vol_garch', 'RF']].values
+X_test = test[['UNDERLYING','Moneyness', 'TTM', '60dvol', 'RF']].values
 y_test = test['CALL_PRICE'].values
 """
 #X_test = test[['Moneyness', 'TTM','60dvol', 'vol_garch', 'RF']].values
 #X_test = test[['Moneyness', 'TTM']].values
-X_test = test[['Moneyness', 'TTM', '1mvol','3mvol','60dvol','vol_garch', 'RF']].values
+X_test = test[['Moneyness', 'TTM','1mvol','3mvol','60dvol','RF']].values
 y_test = test['CALL_PRICE2'].values
 #predicting with model1
 #y_train_hat = model1.model1(X_train, y_train)
@@ -307,6 +341,9 @@ model.fit(X_train, y_train, batch_size=128,
 
 epochs=10, validation_split=0.1, verbose=2)
 
+
+plot_model(model, to_file = "neuralplot.png")
+
 #y_train_hat = model.predict(X_train)
 # reduce dim (240000,1) -> (240000,) to match y_train's dim
 #y_train_hat = np.squeeze(y_train_hat)
@@ -329,19 +366,27 @@ def CheckAccuracy(y,y_hat):
     
     stats['mpe'] = np.sqrt(stats['mse'])/np.mean(y)
     print("Mean Percent Error:      ", stats['mpe'])
-    plt.figure(figsize=(14,10))
+
+    plt.title("Test sample diagnostics")
+    plt.subplot(1, 2, 1)
+    #plt.figure(figsize=(14,10))
+    plt.title("Predicted vs Actual")
     plt.scatter(y, y_hat,color='black',linewidth=0.3,alpha=0.4, s=0.5)
-    plt.xlabel('Actual Price C/K Test Sample' ,fontsize=20,fontname='Times New Roman')
-    plt.ylabel('Predicted Price C/K Test Sample',fontsize=20,fontname='Times New Roman') 
+    plt.xlabel('Actual Price C/K Test Sample')
+    plt.ylabel('Predicted Price C/K Test Sample') 
     #plt.xlim([0.0, 0.25])
     #plt.ylim([0.0, 0.25])
-    plt.show()
+    #plt.show()
     
-    plt.figure(figsize=(14,10))
-    plt.hist(stats['diff'], bins=25,edgecolor='black',color='white')
-    plt.xlabel('Diff')
-    plt.ylabel('Density')
+    plt.subplot(1, 2, 2)
+    #plt.figure(figsize=(14,10))
+    plt.title("Absolute error by option price size")
+    plt.ylabel('Absolute Error')
+    plt.xlabel('C/K')
+    plt.scatter(y ,abs(stats['diff']), alpha=0.4, s=0.5,color='black')
     plt.show()
+
+
 
 
 """
@@ -367,82 +412,26 @@ CheckAccuracy(y_train, y_train_hat)
 #out-sample
 y_test_hat = model.predict(X_test)
 y_test_hat = np.squeeze(y_test_hat)
+
+
+
 test_stats = CheckAccuracy(y_test, y_test_hat)
+
+
+test["difference"] = y_test - y_test_hat
+
+plt.hist(test["difference"], bins = 50, color = "black")
+plt.title("Absolute error histogram")
+plt.ylabel('Density')
+plt.xlabel('Absolute Error')
+plt.show()
+
+
+
+
 
 test["ANNpred"] = y_test_hat.tolist()
 print(test)
-#grad_func = tf.gradients(model.output[:, 0], model.input).numpy()
-
-
-
-
-#test["ANNdelta"] = grad_func
-#print(grad_func)
-#print(grad_func[0,0])
-
-#print(test)
-"""
-
-input_images_tensor = tf.constant(X_test)
-with tf.GradientTape() as g:
-    g.watch(input_images_tensor)
-    output_tensor = model(input_images_tensor)
-
-gradients = g.gradient(output_tensor, input_images_tensor)
-print(gradients)
-"""
-
-
-
-def jacobian_tensorflow(x):    
-    jacobian_matrix = []
-    
-       
-    grad_func = tf.gradients(model.output[:, 0], model.input)
-    gradients = sess.run(grad_func, feed_dict={model.input: x.reshape((1, x.size))})
-    jacobian_matrix.append(gradients[0][0,:])
-        
-    return np.array(jacobian_matrix)
-
-
-def is_jacobian_correct(jacobian_fn, ffpass_fn):
-   
-    x = np.random.random((1,))
-    epsilon = 1e-5
-  
-    num_of_inputs = 5
-   
-    for idx in range(num_of_inputs):
-
-        x2 = x.copy()
-        x2[idx] += epsilon
-        num_jacobian = (ffpass_fn(x2) - ffpass_fn(x)) / epsilon
-        computed_jacobian = jacobian_fn(x)
-        
-        if not all(abs(computed_jacobian[:, idx] - num_jacobian) < 1e-3): 
-            return False
-
-def ffpass_tf(x):
-  
-    xr = x.reshape((1, x.size))
-    return model.predict(xr)[0]
-#is_jacobian_correct(jacobian_tensorflow, ffpass_tf)
-#jacobian_tf = jacobian_tensorflow(X_test)
-
-#print(jacobian_tf)
-
-def getder(row, sess, grad_func, model):
-    x  = np.asarray([(0, 0, 0, 0, 0)])
-    x[0,0] = row['Moneyness']
-    x[0,1] = row['TTM']
-    x[0,2] = row['60dvol']
-    x[0,3] = row['vol_garch']
-    x[0,4] = row['RF']
-    gradients = sess.run(grad_func, feed_dict={model.input: x.reshape((1, x.size))})
-    return np.array(gradients[0][0,:])[0]
-
-
-
 
 
 gradients = tf.gradients(model.output[:, 0], model.input)
@@ -454,9 +443,10 @@ print(evaluated_gradients_1)
 def Extract(lst):
     return [item[0] for item in lst]
 
-#print(len(Extract(evaluated_gradients_1)))
+
 deltaANN = Extract(evaluated_gradients_1)
 test["deltaANN"] = deltaANN
+
 
 test["annvalue"] = test["ANNpred"] * test["STRIKE"] 
 print(test["deltaANN"].max())
@@ -466,4 +456,21 @@ print(test)
 xx = test.to_csv("moneynesstest.csv")
 
 
-CheckAccuracy(test["CALL_PRICE2"], test["bsprice2"])
+#CheckAccuracy(test["CALL_PRICE2"], test["bsprice2"])
+
+
+suuri = test[test["TTM2"] > 180]
+pieni = test[test["TTM2"] < 60]
+normi = test[test["TTM2"] > 60]
+normi = test[test["TTM2"] < 180]
+
+print("tarkastelu")
+CheckAccuracy(suuri["CALL_PRICE2"],suuri["ANNpred"])
+print("^suuri")
+
+CheckAccuracy(pieni["CALL_PRICE2"],pieni["ANNpred"])
+print("^pieni")
+
+
+CheckAccuracy(normi["CALL_PRICE2"],normi["ANNpred"])
+print("^normi")

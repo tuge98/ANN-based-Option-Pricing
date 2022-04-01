@@ -50,9 +50,14 @@ df["VBBSlag"] = df.VBBS.shift()
 df["VBBS"] = np.where(df["rank"] > 0, (np.exp(df["RF"]) * df["VBBSlag"]) - df["UNDERLYING"] * (df["deltaANN"] - df["lag_deltaANN"]), df["VB"])
 df["VTBS"] = df["VSBS"] + df["VBBS"] + df["VCBS"]
 
-#df = df[df["Moneyness"] < 1.05]
+
+
+
+
+
+#df = df[df["Moneyness"] > 1.00]
 #df = df[df["Moneyness"] > 0.95]
-df = df[df["Moneyness"] < 0.95]
+#df = df[df["Moneyness"] < 0.95]
 grouped_df = df.groupby(['A']).tail(1)
 
 print(grouped_df["VT"].abs().mean(), "ANN")
@@ -62,7 +67,7 @@ tracking_error_ANN = grouped_df["VT"].abs()
 tracking_error_BS = grouped_df["VTBS"].abs()
 
 
-print(stats.ttest_rel(grouped_df["VT"].abs(), grouped_df["VTBS"].abs()))
+print(stats.ttest_rel(grouped_df["VT"].abs(),grouped_df["VTBS"].abs()))
 
 
                                        
@@ -82,11 +87,40 @@ y = df["Moneyness"]
 z = df["deltaANN"]
 
 
+"""
 fig = plt.figure()
 ax = plt.axes(projection='3d')
-ax.plot3D(x, y, z)
+ax.plot3D(x, y, z, cmap = 'viridis')
 #ax.plot_wireframe(x, y, z,cmap='viridis', edgecolor='none')
 ax.set_title('Surface plot')
 plt.show()
 
+"""
+
+fig = plt.figure()
+ 
+# syntax for 3-D plotting
+ax = plt.axes(projection ='3d')
+ 
+# syntax for plotting
+ax.plot_trisurf(x, y, z, cmap ='viridis')
+#ax.set_title('')
+ax.set_xlabel("TTM")
+ax.set_ylabel("S/K")
+ax.set_zlabel("Delta")
+
+plt.show()
+
+
+
 print(df["deltaANN"].max())
+#df.loc[lambda x:x df.Moneyness > 1.15]
+
+df2 = df.assign(lambda x: x.Moneyness > 1,
+
+)
+#xx = np.where(df.loc[lambda x: x.VT > 1], "bigger", "smaller")
+print(df2)
+
+
+
