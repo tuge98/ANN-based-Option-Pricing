@@ -87,7 +87,7 @@ df["60dvol"] = df["indeksi"].pct_change().rolling(window_size60d).std()*(252**0.
 df["MA"] = df["indeksi"].rolling(window = 100).mean()
 df['vola'] = 100 * (df["indeksi"].pct_change())
 df = df.dropna()
-
+df['pct_change'] =  df['indeksi'].pct_change(1) * 100
 
 
 
@@ -99,12 +99,26 @@ df = df.dropna()
 #garchfunctions.plot_correlogram(df['vola'], lags=30, title='FTSE 100')
 #plot_acf(df["vola"], lags = 30)
 #plot_pacf(df["vola"], lags = 30)
-garch = garchfunctions.garch(df)
+#garch = garchfunctions.garch(df)
 
 #undo the code to see garch plots
-df['vol_garch'].plot()
-plt.show()
+#df['vol_garch'].plot()
+#plt.show()
 print(df)
+
+df = df.dropna()
+
+#garch1 = arch_model(df['pct_change'], vol='GARCH', p = 1 , o = 0 , q = 1)
+garch1 = arch_model(df['pct_change'], vol='GARCH', p=1, q=1, dist='normal')
+#garch = arch_model(df['pct_change'], vol='GARCH', p=1, q=1, mean='constant')
+fgarch = garch1.fit(disp='off') 
+
+resid = fgarch.resid
+st_resid = np.divide(resid, fgarch.conditional_volatility)
+#ts_plot(resid, st_resid)
+fgarch.summary()
+
+df["garch"] = fgarch.resid
 
 
 
@@ -224,7 +238,7 @@ df1 = df1.merge(rfdata, on = "Name")
 
 #calculating theoretical optionprices
 df1["bsprice"] = blackscholes.blackscholes(df1["UNDERLYING"],df1["STRIKE"],df1["TTM"],0.01,df1["3mvol"])
-df1["bsdelta"] = blackscholes.bsdelta(df1["UNDERLYING"],df1["STRIKE"],df1["TTM"],0.01,df1["3mvol"])
+df1["bsdelta"] = blackscholes.bsdelta(df1["UNDERLYING"],df1["STRIKE"],df1["TTM"],0.05,df1["3mvol"])
 df1["bsprice"]=df1["bsprice"].round(4)
 df1 = df1.dropna()
 df1 = df1.drop_duplicates()
@@ -283,7 +297,7 @@ y_train = train['CALL_PRICE'].values
 
 #X_train = train[['Moneyness', 'TTM', '60dvol', 'vol_garch', 'RF']].values
 #X_train = train[['Moneyness', 'TTM']].values
-X_train = train[['Moneyness', 'TTM','1mvol','3mvol','60dvol','RF']].values
+X_train = train[['Moneyness', 'TTM','1mvol','3mvol','60dvol','RF', 'garch']].values
 y_train = train['CALL_PRICE2'].values
 test = df1[n_train+1:n]
 print(len(test))
@@ -295,7 +309,7 @@ y_test = test['CALL_PRICE'].values
 """
 #X_test = test[['Moneyness', 'TTM','60dvol', 'vol_garch', 'RF']].values
 #X_test = test[['Moneyness', 'TTM']].values
-X_test = test[['Moneyness', 'TTM','1mvol','3mvol','60dvol','RF']].values
+X_test = test[['Moneyness', 'TTM','1mvol','3mvol','60dvol','RF','garch']].values
 y_test = test['CALL_PRICE2'].values
 #predicting with model1
 #y_train_hat = model1.model1(X_train, y_train)
@@ -459,6 +473,7 @@ xx = test.to_csv("moneynesstest.csv")
 #CheckAccuracy(test["CALL_PRICE2"], test["bsprice2"])
 
 
+"""
 suuri = test[test["TTM2"] > 180]
 pieni = test[test["TTM2"] < 60]
 normi = test[test["TTM2"] > 60]
@@ -474,3 +489,35 @@ print("^pieni")
 
 CheckAccuracy(normi["CALL_PRICE2"],normi["ANNpred"])
 print("^normi")
+"""
+print("garch")
+#CheckAccuracy(train["CALL_PRICE2"], train["bsprice2"])
+def plotting_function_ANN(df):
+    
+    plt.subplot(2, 2, 1)
+    #plt.subplot(1, 2, 1)
+    plt.title("Moneyness vs Pricing Error")
+    df['pricing_error_ANN'] = df["ANNpred"] - df["CALL_PRICE2"]
+    plt.scatter(df["pricing_error_ANN"], df["Moneyness"], color='black',linewidth=0.3,alpha=0.4, s=0.5)
+    plt.xlabel('Pricing Error (ANN_garch)')
+    plt.ylabel('Moneyness')
+    plt.tight_layout()
+    
+    plt.subplot(2, 1, 2)
+    #plt.subplot(1, 2, 2)
+    plt.title("Predicted vs Actual")
+    plt.scatter(df["CALL_PRICE2"], df["ANNpred"],color='black',linewidth=0.3,alpha=0.4, s=0.5)
+    plt.xlabel('Actual C/K ')
+    plt.ylabel('Predicted C/K')
+    plt.tight_layout()
+    #plt.show()
+    plt.subplot(2, 2, 2)
+    #plt.subplot(1, 1, 2)
+    plt.hist(df['pricing_error_ANN'], bins = 50, color = "black")
+    plt.title("Absolute error histogram")
+    plt.ylabel('Density')
+    plt.xlabel('Absolute Error')
+    plt.tight_layout()
+    plt.show()
+
+plotting_function_ANN(test)

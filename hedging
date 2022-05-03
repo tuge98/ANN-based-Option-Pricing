@@ -55,9 +55,9 @@ df["VTBS"] = df["VSBS"] + df["VBBS"] + df["VCBS"]
 
 
 
-#df = df[df["Moneyness"] > 1.00]
+#df = df[df["Moneyness"] > 1.05]
 #df = df[df["Moneyness"] > 0.95]
-#df = df[df["Moneyness"] < 0.95]
+df = df[df["Moneyness"] < 1.00]
 grouped_df = df.groupby(['A']).tail(1)
 
 print(grouped_df["VT"].abs().mean(), "ANN")
@@ -68,6 +68,8 @@ tracking_error_BS = grouped_df["VTBS"].abs()
 
 
 print(stats.ttest_rel(grouped_df["VT"].abs(),grouped_df["VTBS"].abs()))
+
+#print(stats.ttest_rel(grouped_df["VTBS"].abs(),grouped_df["VT"].abs()))
 
 
                                        
@@ -84,8 +86,9 @@ print(ttest)
 
 x = df["TTM"]
 y = df["Moneyness"]
-z = df["deltaANN"]
-
+#z = df["deltaANN"]
+z = df["bsdelta"]
+print(df.columns)
 
 """
 fig = plt.figure()
@@ -114,13 +117,7 @@ plt.show()
 
 
 print(df["deltaANN"].max())
-#df.loc[lambda x:x df.Moneyness > 1.15]
 
-df2 = df.assign(lambda x: x.Moneyness > 1,
-
-)
-#xx = np.where(df.loc[lambda x: x.VT > 1], "bigger", "smaller")
-print(df2)
 
 
 
