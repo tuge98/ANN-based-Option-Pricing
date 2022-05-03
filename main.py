@@ -356,7 +356,7 @@ model.fit(X_train, y_train, batch_size=128,
 epochs=10, validation_split=0.1, verbose=2)
 
 
-plot_model(model, to_file = "neuralplot.png")
+#plot_model(model, to_file = "neuralplot.png")
 
 #y_train_hat = model.predict(X_train)
 # reduce dim (240000,1) -> (240000,) to match y_train's dim
@@ -429,22 +429,27 @@ y_test_hat = np.squeeze(y_test_hat)
 
 
 
-test_stats = CheckAccuracy(y_test, y_test_hat)
+#test_stats = CheckAccuracy(y_test, y_test_hat)
 
 
 test["difference"] = y_test - y_test_hat
 
+
+"""¨
 plt.hist(test["difference"], bins = 50, color = "black")
 plt.title("Absolute error histogram")
 plt.ylabel('Density')
 plt.xlabel('Absolute Error')
 plt.show()
 
+"""
 
 
 
 
-test["ANNpred"] = y_test_hat.tolist()
+
+
+test["ANNpred1"] = y_test_hat.tolist()
 print(test)
 
 
@@ -459,15 +464,15 @@ def Extract(lst):
 
 
 deltaANN = Extract(evaluated_gradients_1)
-test["deltaANN"] = deltaANN
+#test["deltaANN"] = deltaANN
 
 
-test["annvalue"] = test["ANNpred"] * test["STRIKE"] 
-print(test["deltaANN"].max())
+#test["annvalue"] = test["ANNpred"] * test["STRIKE"] 
+#print(test["deltaANN"].max())
 
-print(test)
+#print(test)
 
-xx = test.to_csv("moneynesstest.csv")
+#xx = test.to_csv("moneynesstest.csv")
 
 
 #CheckAccuracy(test["CALL_PRICE2"], test["bsprice2"])
@@ -520,4 +525,68 @@ def plotting_function_ANN(df):
     plt.tight_layout()
     plt.show()
 
-plotting_function_ANN(test)
+#plotting_function_ANN(test)
+
+
+
+def mlp_model(X_train, y_train):
+    
+    nodes = 120
+   
+    sess = tf.compat.v1.InteractiveSession()
+    sess.run(tf.compat.v1.global_variables_initializer())
+    model = Sequential()
+
+    model.add(Dense(nodes, input_dim=X_train.shape[1]))
+    model.add(LeakyReLU())
+    model.add(Dropout(0.25))
+
+    model.add(Dense(nodes, activation='elu'))
+    model.add(Dropout(0.25))
+
+
+    model.add(Dense(nodes, activation='relu'))
+    model.add(Dropout(0.25))
+
+ 
+
+    model.add(Dense(1))
+    model.add(Activation(custom_activation))
+    
+
+    model.compile(loss='mse', optimizer='rmsprop')
+
+    # fitting neural network
+    model.fit(X_train, y_train, batch_size=128,
+
+    epochs=10, validation_split=0.1, verbose=2)
+
+    #y_test_hat = model.predict(X_test)
+    #y_test_hat = np.squeeze(y_test_hat)
+    return model
+
+
+def extract_predictions(model, X_test):
+    y_test_hat = model.predict(X_test)
+    y_test_hat = np.squeeze(y_test_hat)
+    return y_test_hat
+
+
+
+
+
+
+x_train_model_2 = train[['Moneyness', 'TTM','1mvol','3mvol','60dvol','RF']].values
+y_train_model_2 = train["CALL_PRICE2"].values
+x_test_model_2 = test[['Moneyness', 'TTM','1mvol','3mvol','60dvol','RF']].values
+y_x_test_model_2 = test["CALL_PRICE2"].values
+
+
+#training and predictign with second model
+model2 = mlp_model(x_train_model_2, y_train_model_2)
+
+model2price = extract_predictions(model2, x_test_model_2)
+
+test["First_model_annprice"] = model2price
+
+import IPython; IPython.embed()
