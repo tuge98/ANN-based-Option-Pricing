@@ -157,6 +157,7 @@ daatta7 = pd.melt(daatta7,id_vars="Name")
 
 #concatenating datas
 combined_data = pd.concat([daatta1,daatta2,daatta3,daatta4,daatta5,daatta6,daatta7])
+import ipdb; ipdb.set_trace()
 combined_data = combined_data[~combined_data.variable.str.contains('#ERROR')]
 
 
@@ -177,7 +178,7 @@ meltedframe.drop('variable', inplace=True, axis=1)
 meltedframe.loc[meltedframe['B'].str.contains("OPT STRIKE PRICE"), 'B'] = "STRIKE"
 meltedframe.loc[meltedframe['B'].str.contains("OPT.U/LYING PRICE"), 'B'] = "UNDERLYING"
 meltedframe.loc[meltedframe['B'].str.contains("IMPLIED VOL."), 'B'] = "IV"
-
+import ipdb; ipdb.set_trace()
 
 #Dropping duplicates and NA's
 meltedframe = meltedframe.dropna()

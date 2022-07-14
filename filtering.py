@@ -12,6 +12,6 @@ def filteringfunction(df):
     df = df[df["CALL_PRICE"] >= 10]
 
     #Option has less than 15 days to maturity
-    df = df[df["TTM"] >= 15]
-    df = df[df["TTM"] <= 252]
+    df = df[df["TTM2"] >= 15]
+    df = df[df["TTM2"] <= 252]
     return df
