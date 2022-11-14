@@ -79,7 +79,7 @@ if __name__ == '__main__':
     X_test = test[['Moneyness', 'TTM', '1mvol',
                    '3mvol', '60dvol', 'garch']].values
     y_test = test['CALL_PRICE2'].values
-    model = MLPnetwork(num_epochs=10, batch=64, nodes=120,
+    model = MLPnetwork(num_epochs=1000, batch=64, nodes=120,
                        X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test)
     fit = model.initNetwork()
     y_test_hat = model.outSample()
